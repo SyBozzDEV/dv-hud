@@ -22,7 +22,7 @@ namespace DvMod.HeadsUpDisplay
 
         private static string GetSpeedLimitEventDescription(SpeedLimitEvent e)
         {
-            var currentSpeed = Mathf.Abs(PlayerManager.Car.GetForwardSpeed() * 3.6f);
+            var currentSpeed = PlayerManager.Car.GetAbsSpeed() * 3.6f;
             var color = "white";
             if (currentSpeed > e.limit + 5f)
                 color = e.span < 500f ? "red" : e.span < 1000f ? "orange" : "yellow";

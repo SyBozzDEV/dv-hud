@@ -82,9 +82,9 @@ namespace DvMod.HeadsUpDisplay
             var frontCar = cars.ElementAt(index - 1);
             var rearCar = cars.ElementAt(index);
             static bool IsFrontCoupledTo(TrainCar car, TrainCar attached) =>
-                car.frontCoupler.springyCJ && car.frontCoupler.coupledTo.train == attached;
+                car.frontCoupler.rigidCJ && car.frontCoupler.coupledTo.train == attached;
             static bool IsRearCoupledTo(TrainCar car, TrainCar attached) =>
-                car.rearCoupler.springyCJ && car.rearCoupler?.coupledTo?.train == attached;
+                car.rearCoupler.rigidCJ && car.rearCoupler?.coupledTo?.train == attached;
 
             (TrainCar car, bool isFront) FindCoupler()
             {
@@ -295,6 +295,8 @@ namespace DvMod.HeadsUpDisplay
                 DrawCouplerStress(groups);
             if (trainInfoSettings.showCarJobs)
                 DrawCarJobs(groups);
+            if (trainInfoSettings.showCarJobsTimeRemaining)
+                DrawCarJobsTimeRemaining(groups);
             if (trainInfoSettings.showCarDestinations)
                 DrawCarDestinations(groups);
             if (trainInfoSettings.showCarBrakeStatus)
@@ -306,11 +308,12 @@ namespace DvMod.HeadsUpDisplay
         private const float HueOrange = 30f / 360f;
         private static Color GetCarColor(TrainCar car)
         {
+            if (car == null)
+                return Color.white;
             if (car.derailed)
                 return Color.red;
             if (!car.IsLoco)
                 return Color.white;
-
             var isMultipleUnitCapable = car.TryGetComponent<MultipleUnitModule>(out var muModule);
             var frontMUDisconnected = isMultipleUnitCapable
                 && car.frontCoupler.coupledTo?.train?.carType == car.carType
@@ -320,7 +323,7 @@ namespace DvMod.HeadsUpDisplay
                 && !muModule.RearCable.IsConnected;
             var hasDisconnectedMUCable = frontMUDisconnected || rearMUDisconnected;
 
-            var isRunning = car.GetComponent<SimController>()?.controlsOverrider.EngineOnReader.IsOn ?? true;
+            var isRunning = car.GetComponent<SimController>()?.controlsOverrider?.EngineOnReader?.IsOn ?? true;
 
             return Color.HSVToRGB(HueOrange, hasDisconnectedMUCable ? 1 : 0, isRunning ? 1 : 0.8f);
         }
@@ -388,6 +391,30 @@ namespace DvMod.HeadsUpDisplay
             {
                 GUI.contentColor = JobColor(group.job);
                 GUILayout.Label(group.job?.ID ?? " ", Styles.noWrap);
+            }
+            GUI.contentColor = Color.white;
+            GUILayout.EndVertical();
+        }
+        private static void DrawCarJobsTimeRemaining(IEnumerable<CarGroup> groups)
+        {
+            GUILayout.Space(Overlay.ColumnSpacing);
+            GUILayout.BeginVertical();
+            GUILayout.Label("Time Left", Styles.noWrap);
+            foreach (CarGroup group in groups)
+            {
+                if (group.job != null && group.job.State == JobState.InProgress)
+                {
+                    double totalMinutes = TimeSpan.FromSeconds(group.job.TimeLimit - group.job.GetTimeOnJob()).TotalMinutes;
+
+                    GUI.contentColor = totalMinutes > 5 ? Color.white : totalMinutes > 1 ? Color.yellow : Color.red;
+
+                    var absMinutes = Math.Abs(totalMinutes);
+                    GUILayout.Label($"{(totalMinutes < 0 ? "-" : "")}{(int)absMinutes}:{Math.Floor((absMinutes % 1) * 60):00}", Styles.rightAlign);
+                }
+                else
+                {
+                    GUILayout.Label(" ", Styles.noWrap);
+                }
             }
             GUI.contentColor = Color.white;
             GUILayout.EndVertical();
